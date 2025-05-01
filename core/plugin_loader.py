@@ -112,8 +112,7 @@ class PluginLoader:
                         rel_path = os.path.relpath(root, plugin_dir)
                         module_path = os.path.join(rel_path, file[:-3]).replace(os.sep, '.')
                         
-                        if module_path.startswith('.'):
-                            module_path = module_path[1:]
+                        module_path = module_path.lstrip('.')
                             
                         try:
                             # Import the module
@@ -198,7 +197,10 @@ class PluginLoader:
             return {"error": f"Check {check_id} not found"}
         
         try:
-            check.passed = check.check()
+            # Run the check and record both passed and result
+            passed = check.check()
+            check.passed = passed
+            check.result = passed  # mark that the check has run
             return check.get_result()
         except Exception as e:
             logger.error(f"Error running check {check_id}: {e}")

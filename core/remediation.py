@@ -94,3 +94,38 @@ class RemediationExecutor:
                 "success": False,
                 "message": str(e)
             }
+
+class RemediationManager:
+    """
+    Manages remediation logic including script generation and execution.
+    """
+
+    def __init__(self):
+        self.executor = RemediationExecutor()
+
+    def generate_remediation_script(self, check_id: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+        """
+        Generate a remediation script for a given check.
+
+        Args:
+            check_id (str): Identifier for the check.
+            metadata (Optional[Dict[str, Any]]): Optional data used to customize the script.
+
+        Returns:
+            str: Script content.
+        """
+        # Placeholder logic (you can extend it as needed)
+        return f"# Remediation script for {check_id}\necho 'Fixing {check_id}'\n"
+
+    def execute_remediation(self, script_content: str, admin_required: bool = False) -> Dict[str, Any]:
+        """
+        Execute a given remediation script using the RemediationExecutor.
+
+        Args:
+            script_content (str): The content of the remediation script.
+            admin_required (bool): Whether admin/root privileges are required.
+
+        Returns:
+            dict: Execution result.
+        """
+        return self.executor.execute_script(script_content, admin_required)

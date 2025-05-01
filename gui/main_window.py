@@ -3,6 +3,7 @@
 
 import os
 import tkinter as tk
+import json
 from tkinter import ttk, messagebox, filedialog
 import threading
 import time
@@ -14,6 +15,7 @@ from core.remediation import RemediationManager
 from integrations.nvd_client import NVDClient
 from utils.export import ExportManager
 from utils.system import get_platform_info
+
 
 class ScanTab(ttk.Frame):
     """Tab for running security scans."""
@@ -665,12 +667,34 @@ class SettingsTab(ttk.Frame):
         theme_combo = ttk.Combobox(frame, textvariable=self.theme_var, values=themes, state="readonly")
         theme_combo.grid(row=1, column=1, sticky="ew", pady=5)
         
+        def on_theme_change(event):
+            new_theme = self.theme_var.get()
+            try:
+                ttk.Style().theme_use(new_theme)
+                # Update and save settings immediately
+                self.settings["theme"] = new_theme
+                self.save_settings(self.settings)
+            except Exception as e:
+                messagebox.showerror("Theme Error", f"Failed to apply theme: {str(e)}")
+
+        theme_combo.bind("<<ComboboxSelected>>", on_theme_change)
+
+        
         # Add auto-save setting
         ttk.Label(frame, text="Auto-save Settings:").grid(row=2, column=0, sticky="w", pady=5)
         
         self.autosave_var = tk.BooleanVar(value=self.settings.get("autosave", True))
         autosave_check = ttk.Checkbutton(frame, variable=self.autosave_var)
         autosave_check.grid(row=2, column=1, sticky="w", pady=5)
+        
+    def on_theme_change(event):
+        try:
+            ttk.Style().theme_use(self.theme_var.get())
+        except Exception as e:
+            messagebox.showerror("Theme Error", f"Failed to apply theme: {str(e)}")
+
+        theme_combo.bind("<<ComboboxSelected>>", on_theme_change)
+
         
     def create_scanning_settings(self, parent):
         """Create scanning settings UI."""
@@ -776,20 +800,21 @@ class SettingsTab(ttk.Frame):
                 print(f"Error loading settings: {e}")
         return {}
         
-    def save_settings(self):
+    def save_settings(self, settings=None):
         """Save settings to file."""
         # Collect settings from UI
-        settings = {
-            "report_dir": self.report_dir_var.get(),
-            "theme": self.theme_var.get(),
-            "autosave": self.autosave_var.get(),
-            "threads": self.threads_var.get(),
-            "timeout": self.timeout_var.get(),
-            "prompt_remediation": self.auto_remediate_var.get(),
-            "nvd_api_key": self.nvd_api_key_var.get(),
-            "rate_limit": self.rate_limit_var.get(),
-            "api_timeout": self.api_timeout_var.get()
-        }
+        if settings is None:
+            settings = {
+                "report_dir": self.report_dir_var.get(),
+                "theme": self.theme_var.get(),
+                "autosave": self.autosave_var.get(),
+                "threads": self.threads_var.get(),
+                "timeout": self.timeout_var.get(),
+                "prompt_remediation": self.auto_remediate_var.get(),
+                "nvd_api_key": self.nvd_api_key_var.get(),
+                "rate_limit": self.rate_limit_var.get(),
+                "api_timeout": self.api_timeout_var.get()
+            }
         
         # Save settings to file
         settings_file = os.path.join(self.root_dir, "settings.json")
@@ -799,7 +824,12 @@ class SettingsTab(ttk.Frame):
             messagebox.showinfo("Settings", "Settings saved successfully.")
         except Exception as e:
             messagebox.showerror("Settings", f"Error saving settings: {str(e)}")
-
+        
+        # Apply the theme immediately
+        try:
+            ttk.Style().theme_use(self.theme_var.get())
+        except Exception as e:
+            messagebox.showerror("Theme Error", f"Failed to apply theme: {str(e)}")
 
 class AboutTab(ttk.Frame):
     """Tab for application information."""
@@ -947,7 +977,7 @@ class ExportDialog(tk.Toplevel):
     def __init__(self, parent, formats: List[str]):
         super().__init__(parent)
         self.title("Export Format")
-        self.geometry("300x150")
+        self.geometry("300x200")
         self.transient(parent)
         self.grab_set()
         

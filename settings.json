@@ -1,0 +1,11 @@
+{
+  "report_dir": "D:\\Security_Auditor\\reports",
+  "theme": "vista",
+  "autosave": true,
+  "threads": 4,
+  "timeout": 30,
+  "prompt_remediation": true,
+  "nvd_api_key": "107a7302-f8ea-4a2b-bad4-55b05309d78e",
+  "rate_limit": 30,
+  "api_timeout": 10
+}

@@ -300,3 +300,27 @@ class NVDClient:
                                 mappings[check_id].append(details)
         
         return mappings
+    def test_connection(self) -> bool:
+        """
+        Test connectivity to the NVD API by making a minimal request.
+        Returns True if the API is reachable (HTTP 200), False otherwise.
+        """
+        try:
+            # Respect NVD rate limiting
+            self._rate_limit()
+            headers = {}
+            if self.api_key:
+                headers["apiKey"] = self.api_key
+
+            # Make a minimal request (1 result)
+            response = requests.get(
+                self.BASE_URL,
+                params={"resultsPerPage": 1},
+                headers=headers,
+                timeout=10
+            )
+            response.raise_for_status()
+            return True
+        except Exception as e:
+            logger.error(f"NVD API connection test failed: {e}")
+            return False
