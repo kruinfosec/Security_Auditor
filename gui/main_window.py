@@ -1360,3 +1360,60 @@ class MainApplication(ttk.Frame):
         # Create scan tab
         self.scan_tab = ScanTab(self.notebook, self.scanner, self.platform_info)
         self.notebook.add(self.scan_tab, text="Scan System")
+        
+         # Create history tab
+        self.history_tab = HistoryTab(self.notebook, self.scanner)
+        self.notebook.add(self.history_tab, text="Scan History")
+
+        # Create settings tab
+        self.settings_tab = SettingsTab(self.notebook, self.root_dir)
+        self.notebook.add(self.settings_tab, text="Settings")
+
+        # Create about tab
+        self.about_tab = AboutTab(self.notebook)
+        self.notebook.add(self.about_tab, text="About")
+
+        # Pack the main frame
+        self.pack(fill="both", expand=True)
+
+        # Apply saved theme
+        self.apply_theme()
+
+    def apply_theme(self):
+        """Apply saved theme from settings."""
+        try:
+            import json
+            settings_path = os.path.join(self.root_dir, "settings.json")
+            if os.path.exists(settings_path):
+                with open(settings_path, "r") as f:
+                    settings = json.load(f)
+                theme = settings.get("theme", "default")
+                ttk.Style().theme_use(theme)
+        except Exception as e:
+            print(f"[Warning] Failed to apply theme: {e}")
+
+
+def run_gui():
+    """Entry point to launch the Tkinter GUI."""
+    root = tk.Tk()
+    root.title("Security Auditor Tool")
+    root.geometry("1024x768")
+    root.minsize(800, 600)
+
+    # Platform detection
+    platform_info = get_platform_info()
+
+    # Root directory
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Set application icon if available
+    icon_path = os.path.join(root_dir, "assets", "icon.ico")
+    if os.path.exists(icon_path):
+        try:
+            root.iconbitmap(icon_path)
+        except Exception as e:
+            print(f"[Warning] Failed to set window icon: {e}")
+
+    # Launch main app
+    app = MainApplication(root, root_dir, platform_info)
+    app.mainloop()
