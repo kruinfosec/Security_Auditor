@@ -178,6 +178,7 @@ class ScanTab(ttk.Frame):
         header_frame = ttk.Frame(parent)
         header_frame.pack(fill="x", padx=5, pady=5)
         
+        
         # Add scan status label
         self.status_label = ttk.Label(header_frame, text="No scan running")
         self.status_label.pack(side=tk.LEFT)
@@ -185,7 +186,16 @@ class ScanTab(ttk.Frame):
         # Add progress bar
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(header_frame, variable=self.progress_var, length=200)
-        self.progress_bar.pack(side=tk.RIGHT)
+        self.progress_bar.pack(side=tk.RIGHT, padx=5)
+        
+        # Add “Fix Issue” button immediately to the left of the progress bar
+        self.remediate_button = ttk.Button(
+            header_frame,
+            text="Fix Issue",
+            command=self.remediate_selected,
+            state=tk.DISABLED
+        )
+        self.remediate_button.pack(side=tk.RIGHT, padx=5)  # now sits just left of the bar
         
         # Create a treeview for the results
         columns = ("Status", "Title", "Severity", "CVEs")
@@ -221,10 +231,6 @@ class ScanTab(ttk.Frame):
         detail_scrollbar = ttk.Scrollbar(self.detail_frame, orient="vertical", command=self.detail_text.yview)
         self.detail_text.configure(yscrollcommand=detail_scrollbar.set)
         detail_scrollbar.pack(side=tk.RIGHT, fill="y")
-        
-        # Add button for remediation
-        self.remediate_button = ttk.Button(self.detail_frame, text="Fix Issue", command=self.remediate_selected, state=tk.DISABLED)
-        self.remediate_button.pack(side=tk.BOTTOM, padx=8, pady=5)
         
         # Bind treeview selection
         self.results_tree.bind("<<TreeviewSelect>>", self.on_result_selected)
