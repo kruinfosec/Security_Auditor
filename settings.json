@@ -1,6 +1,6 @@
 {
   "report_dir": "D:\\Security_Auditor\\reports",
-  "theme": "vista",
+  "theme": "default",
   "autosave": true,
   "threads": 4,
   "timeout": 30,

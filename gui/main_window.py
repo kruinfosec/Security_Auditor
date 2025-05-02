@@ -224,7 +224,7 @@ class ScanTab(ttk.Frame):
         
         # Add button for remediation
         self.remediate_button = ttk.Button(self.detail_frame, text="Fix Issue", command=self.remediate_selected, state=tk.DISABLED)
-        self.remediate_button.pack(side=tk.BOTTOM, padx=5, pady=5)
+        self.remediate_button.pack(side=tk.BOTTOM, padx=8, pady=5)
         
         # Bind treeview selection
         self.results_tree.bind("<<TreeviewSelect>>", self.on_result_selected)

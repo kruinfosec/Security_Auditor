@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 from typing import List, Dict, Any, Optional
+from integrations.nvd_client import NVDClient
 
 from core.plugin_loader import SecurityCheck
 
@@ -28,6 +29,7 @@ class IptablesCheck(SecurityCheck):
     DANGEROUS_PORTS = {
         21: "FTP",
         23: "Telnet",
+        514: "RSH",
         3389: "RDP",
         5900: "VNC"
     }
@@ -41,6 +43,7 @@ class IptablesCheck(SecurityCheck):
         self.active_firewall = None
         self.rules = []
         self.issues = []
+        self.nvd = NVDClient(api_key=os.getenv("NVD_API_KEY"))
         
     def check(self) -> bool:
         """
@@ -81,8 +84,20 @@ class IptablesCheck(SecurityCheck):
         
         # Link CVEs related to firewall misconfigurations
         if self.issues:
-            # Example CVE for firewall misconfiguration
-            self.cve_ids = ["CVE-2019-11510"]  # Example CVE related to improper network access controls
+            # build an issues dict for mapping
+            issues_payload = {
+                self.CHECK_ID: {
+                    "passed": False,
+                    "title": self.TITLE,
+                    "description": self.DESCRIPTION,
+                    "cve_ids": self.cve_ids  # any IDs you already set per-issue
+                }
+            }
+            # fetch full CVE details via NVD API
+            cve_mappings = self.nvd.map_security_issues_to_cves(issues_payload)
+            # attach detailed CVE info
+            self.details["cve_details"] = cve_mappings.get(self.CHECK_ID, [])
+
             
         # The check passes if there are no issues
         return len(self.issues) == 0
@@ -328,6 +343,14 @@ class IptablesCheck(SecurityCheck):
                 "recommendation": "Add stateful filtering: 'iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT'",
                 "severity": "medium"
             })
+
+        # Check loopback allowance
+        if not re.search(r"-i lo\s+-j ACCEPT", ipv4_rules):
+            self.issues.append({
+                "issue": "Loopback interface traffic not explicitly allowed",
+                "recommendation": "Add rule to allow loopback: 'iptables -A INPUT -i lo -j ACCEPT'",
+                "severity": "medium"
+            })
             
         # Check IPv6 rules if available
         if ipv6_rules:
@@ -337,6 +360,15 @@ class IptablesCheck(SecurityCheck):
                     "recommendation": "Set default IPv6 INPUT policy to DROP: 'ip6tables -P INPUT DROP'",
                     "severity": "high"
                 })
+        
+        # Check OUTPUT policy
+        if "Chain OUTPUT (policy ACCEPT" in ipv4_rules:
+            self.issues.append({
+                "issue": "Default OUTPUT policy is set to ACCEPT",
+                "recommendation": "Consider restricting OUTPUT traffic if appropriate: 'iptables -P OUTPUT DROP'",
+                "severity": "low"
+            })
+
                 
     def _analyze_firewalld_rules(self):
         """Analyze firewalld rules for security issues."""
@@ -460,6 +492,10 @@ class IptablesCheck(SecurityCheck):
                 "iptables", "-A", "INPUT", "-p", "tcp", "--dport", "22", "-j", "ACCEPT"
             ], check=True)
             
+            # Block known dangerous ports
+            subprocess.run(["iptables", "-A", "INPUT", "-p", "tcp", "--dport", "514", "-j", "DROP"
+            ], check=True)  # RSH
+
             # IPv6 setup
             try:
                 subprocess.run(["ip6tables", "-P", "INPUT", "DROP"], check=True)
