@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 from typing import List, Dict, Any
+from integrations.nvd_client import NVDClient
 
 from core.plugin_loader import SecurityCheck
 
@@ -51,6 +52,7 @@ class SSHConfigCheck(SecurityCheck):
         super().__init__()
         self.config_values = {}
         self.issues = []
+        self.nvd = NVDClient()
         
     def check(self) -> bool:
         """
@@ -85,11 +87,19 @@ class SSHConfigCheck(SecurityCheck):
         
         # Link to CVEs for SSH vulnerabilities
         self.cve_ids = []
-        if "PermitRootLogin" in self.config_values and self.config_values["PermitRootLogin"] != "no":
-            self.cve_ids.append("CVE-2019-6111")  # Example CVE related to SSH root access
-            
-        if "Protocol" in self.config_values and self.config_values["Protocol"] != "2":
-            self.cve_ids.append("CVE-2016-0777")  # Example CVE related to SSH protocol version
+        keywords = []
+        for issue in self.issues:
+            setting = issue.get("setting", "")
+            description = issue.get("issue", "")
+            if setting:
+                keywords.append(f"SSH {setting} {description}")
+        try:
+            cve_data = self.nvd.map_security_issues_to_cves(keywords)
+            self.cve_ids = [cve["id"] for cve in cve_data]
+            self.details["cve_ids"] = self.cve_ids
+            self.details["cve_info"] = cve_data
+        except Exception as e:
+            self.details["cve_error"] = str(e)
             
         # The check passes if there are no issues
         return len(self.issues) == 0

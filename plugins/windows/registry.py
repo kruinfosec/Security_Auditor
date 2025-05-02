@@ -7,6 +7,7 @@ import sys
 import subprocess
 import winreg
 from typing import List, Dict, Any, Tuple, Optional
+from integrations.nvd_client import NVDClient
 
 from core.plugin_loader import SecurityCheck
 
@@ -110,6 +111,8 @@ class RegistryCheck(SecurityCheck):
         self.issues = []
         self.registry_values = {}
         self.total_settings_checked = 0
+        self.nvd = NVDClient()
+
         
     def check(self) -> bool:
         """
@@ -141,14 +144,36 @@ class RegistryCheck(SecurityCheck):
         }
         
         # Add CVE references for known vulnerabilities related to registry misconfigurations
-        if any(issue["name"] == "Windows Defender Real-time Protection" for issue in self.issues):
-            self.cve_ids.append("CVE-2021-1647")  # Example CVE related to Windows Defender
+        # Build keyword list for CVE mapping
+        keywords = [f"{issue['name']} {issue.get('description', '')}" for issue in self.issues]
+
+        # Map to CVEs
+        try:
+            issues_payload = {
+                self.CHECK_ID: {
+                    "passed": False,
+                    "title": self.TITLE,
+                    "description": self.DESCRIPTION,
+                    "cve_ids": self.cve_ids  # likely still empty
+                }
+            }
+
+            cve_mappings = self.nvd.map_security_issues_to_cves(issues_payload)
+            self.cve_ids = [cve["id"] for cve in cve_mappings.get(self.CHECK_ID, [])]
+            self.details["cve_ids"] = self.cve_ids
+            self.details["cve_info"] = cve_mappings.get(self.CHECK_ID, [])
+
+
+            self.cve_details = cve_mappings.get(self.CHECK_ID, [])  # Optional: used for export or display
             
-        if any(issue["name"] == "SMB Signing" for issue in self.issues):
-            self.cve_ids.append("CVE-2020-0796")  # Example CVE related to SMB
+        except Exception as e:
+            self.details["cve_error"] = f"Failed to fetch CVEs: {e}"
+
             
         # The check passes if there are no issues
         return len(self.issues) == 0
+    
+    
         
     def _check_registry_setting(self, setting: Dict[str, Any]):
         """

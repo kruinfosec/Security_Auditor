@@ -5,6 +5,7 @@ import os
 import sys
 import subprocess
 from typing import List, Dict, Any, Optional
+from integrations.nvd_client import NVDClient
 
 from core.plugin_loader import SecurityCheck
 
@@ -102,6 +103,7 @@ class WindowsServicesCheck(SecurityCheck):
         super().__init__()
         self.issues = []
         self.service_statuses = {}
+        self.nvd = NVDClient()
         
     def check(self) -> bool:
         """
@@ -130,11 +132,35 @@ class WindowsServicesCheck(SecurityCheck):
         }
         
         # Add CVE references for known vulnerabilities related to insecure services
-        if any(issue["name"] == "Telnet Server" for issue in self.issues):
-            self.cve_ids.append("CVE-2020-0796")  # Example CVE related to Windows services
+        keywords = []
+        for issue in self.issues:
+            service = issue["name"]
+            description = issue.get("description", "")
+            keywords.append(f"{service} Windows service {description}")
+
+        # Call NVDClient to map CVEs
+        try:
+            issues_payload = {
+                self.CHECK_ID: {
+                    "passed": False,
+                    "title": self.TITLE,
+                    "description": self.DESCRIPTION,
+                    "cve_ids": self.cve_ids  # likely still empty
+                }
+            }
+
+            cve_mappings = self.nvd.map_security_issues_to_cves(issues_payload)
+            self.cve_ids = [cve["id"] for cve in cve_mappings.get(self.CHECK_ID, [])]
+            self.details["cve_ids"] = self.cve_ids
+            self.details["cve_info"] = cve_mappings.get(self.CHECK_ID, [])
+
+            self.cve_details = cve_mappings.get(self.CHECK_ID, [])  # Optional: used for export or display
             
-        if any(issue["name"] == "Remote Registry" for issue in self.issues):
-            self.cve_ids.append("CVE-2019-1315")  # Example CVE related to Remote Registry
+        except Exception as e:
+            self.cve_ids = []
+            self.cve_details = []
+            self.details["cve_error"] = f"Failed to fetch CVEs: {e}"
+
             
         # The check passes if there are no issues
         return len(self.issues) == 0
